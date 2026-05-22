@@ -63,6 +63,17 @@ func (a *App) Run() error {
 
 	a.logger.Info("IPC server started")
 
+	if a.eyeService != nil {
+		err := a.eyeService.Start(context.Background())
+		if err != nil {
+			a.logger.Error("Failed to start eye service", zap.Error(err))
+
+			return err
+		}
+
+		a.logger.Info("Eye service started")
+	}
+
 	a.appWatcher.Start()
 	a.logger.Info("App watcher started")
 
@@ -600,6 +611,13 @@ func (a *App) Cleanup() {
 			stopServerErr := a.ipcServer.Stop(context.Background())
 			if stopServerErr != nil {
 				a.logger.Error("Failed to stop IPC server", zap.Error(stopServerErr))
+			}
+		}
+
+		if a.eyeService != nil {
+			stopEyeErr := a.eyeService.Stop(context.Background())
+			if stopEyeErr != nil {
+				a.logger.Error("Failed to stop eye service", zap.Error(stopEyeErr))
 			}
 		}
 

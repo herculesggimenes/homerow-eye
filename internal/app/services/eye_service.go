@@ -98,6 +98,38 @@ func NewEyeService(logger *zap.Logger, opts ...EyeServiceOption) *EyeService {
 	return service
 }
 
+// Start prepares the eye subsystem for daemon-owned operation.
+func (s *EyeService) Start(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "start eye service canceled")
+	default:
+	}
+
+	if s.cursorFile == "" {
+		return derrors.New(derrors.CodeInvalidInput, "eye cursor file path is required")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(s.cursorFile), 0o755); err != nil {
+		return derrors.Wrap(err, derrors.CodeConfigIOFailed, "failed to prepare eye data directory")
+	}
+
+	s.logger.Info("Eye service ready", zap.String("cursor_file", s.cursorFile))
+
+	return nil
+}
+
+// Stop stops the eye subsystem.
+func (s *EyeService) Stop(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "stop eye service canceled")
+	default:
+	}
+
+	return nil
+}
+
 // CursorFile returns the configured eye target payload file.
 func (s *EyeService) CursorFile() string {
 	return s.cursorFile
@@ -113,6 +145,14 @@ func (s *EyeService) Target(ctx context.Context) (EyeTarget, error) {
 
 	data, err := os.ReadFile(s.cursorFile)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return EyeTarget{}, derrors.Newf(
+				derrors.CodeInvalidInput,
+				"no eye target available yet; neru launch is ready and waiting for an eye source at %s",
+				s.cursorFile,
+			)
+		}
+
 		return EyeTarget{}, derrors.Wrap(
 			err,
 			derrors.CodeInvalidInput,

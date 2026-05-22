@@ -89,6 +89,42 @@ func TestEyeServiceTargetRejectsMissingSession(t *testing.T) {
 	}
 }
 
+func TestEyeServiceStartCreatesDataDir(t *testing.T) {
+	cursorFile := filepath.Join(t.TempDir(), "nested", "eye", "latest-cursor.json")
+	service := NewEyeService(zap.NewNop(), WithEyeCursorFile(cursorFile))
+
+	if err := service.Start(context.Background()); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+
+	info, err := os.Stat(filepath.Dir(cursorFile))
+	if err != nil {
+		t.Fatalf("expected eye data dir to exist: %v", err)
+	}
+
+	if !info.IsDir() {
+		t.Fatalf("eye data path is not a directory: %s", filepath.Dir(cursorFile))
+	}
+}
+
+func TestEyeServiceTargetMissingFileIsReadyForSource(t *testing.T) {
+	cursorFile := filepath.Join(t.TempDir(), "eye", "latest-cursor.json")
+	service := NewEyeService(zap.NewNop(), WithEyeCursorFile(cursorFile))
+
+	if err := service.Start(context.Background()); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+
+	_, err := service.Target(context.Background())
+	if err == nil {
+		t.Fatal("Target() expected missing target error")
+	}
+
+	if !strings.Contains(err.Error(), "ready and waiting for an eye source") {
+		t.Fatalf("Target() error = %v, want ready/waiting error", err)
+	}
+}
+
 func writeEyeCursorFixture(t *testing.T, body string) string {
 	t.Helper()
 

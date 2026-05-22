@@ -16,6 +16,9 @@ latest eye target from:
 ~/.local/share/neru/eye/latest-cursor.json
 ```
 
+`neru launch` prepares this directory automatically. You should not need to
+create the path by hand.
+
 Override that with either:
 
 ```bash
