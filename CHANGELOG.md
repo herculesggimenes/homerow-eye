@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.39.0](https://github.com/y3owk1n/neru/compare/v1.38.1...v1.39.0) (2026-05-22)
+
+
+### Features
+
+* **hints:** mission control notifications and actions ([#842](https://github.com/y3owk1n/neru/issues/842)) ([2218dd2](https://github.com/y3owk1n/neru/commit/2218dd232adfdfbe8ae9787e1c99c92b023aca2f))
+
+
+### Bug Fixes
+
+* **hints:** ensure ctx cancellation for chaining calls ([#839](https://github.com/y3owk1n/neru/issues/839)) ([c413124](https://github.com/y3owk1n/neru/commit/c413124826801a38c7b51344389d2e8d9a04a548))
+
+
+### Performance Improvements
+
+* **hints:** skip AX hit tests for webkit apps ([#841](https://github.com/y3owk1n/neru/issues/841)) ([3646c88](https://github.com/y3owk1n/neru/commit/3646c887fdcc7d8f91cff0be8608b340fcda057f))
+
 ## [1.38.1](https://github.com/y3owk1n/neru/compare/v1.38.0...v1.38.1) (2026-05-21)
 
 
