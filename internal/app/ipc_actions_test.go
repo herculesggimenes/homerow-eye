@@ -3,6 +3,9 @@ package app
 
 import (
 	"context"
+	"image"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -123,6 +126,17 @@ func TestParseActionArgs_BareFlag(t *testing.T) {
 
 	if !parsed.useBare {
 		t.Fatal("parseActionArgs() expected useBare to be true")
+	}
+}
+
+func TestParseActionArgs_EyeFlag(t *testing.T) {
+	parsed, parseErr := parseActionArgs([]string{"--eye"})
+	if parseErr {
+		t.Fatal("parseActionArgs() unexpected parse error for --eye")
+	}
+
+	if !parsed.useEye {
+		t.Fatal("parseActionArgs() expected useEye to be true")
 	}
 }
 
@@ -276,7 +290,77 @@ func TestHandleAction_MoveMouseWithoutTargetingOrSelectionErrors(t *testing.T) {
 		t.Fatal("handleAction(move_mouse) expected failure without explicit target or selection")
 	}
 
-	if resp.Message != "move_mouse requires --x and --y flags, --center, --window, active selection, or --bare" {
+	if resp.Message != "move_mouse requires --x and --y flags, --center, --window, --eye, active selection, or --bare" {
+		t.Fatalf("unexpected error message: %q", resp.Message)
+	}
+}
+
+func TestHandleAction_MoveMouseEyeMovesToGazeTarget(t *testing.T) {
+	cursorFile := writeEyeCursorFixture(t, `{
+		"sessionId": "session-1",
+		"ts": 1000,
+		"screenX": 100.4,
+		"screenY": 200.6
+	}`)
+
+	var moved image.Point
+	system := &portmocks.SystemMock{
+		MoveCursorToPointFunc: func(_ context.Context, point image.Point, _ bool) error {
+			moved = point
+
+			return nil
+		},
+		WaitForCursorIdleFunc: func(_ context.Context) error {
+			return nil
+		},
+	}
+
+	controller := &IPCControllerActions{
+		actionService: services.NewActionService(
+			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockOverlayPort{},
+			system,
+			zap.NewNop(),
+		),
+		eyeService: services.NewEyeService(
+			zap.NewNop(),
+			services.WithEyeCursorFile(cursorFile),
+			services.WithEyeNow(func() time.Time { return time.Unix(1000, 0) }),
+		),
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"move_mouse", "--eye"},
+	})
+
+	if !resp.Success {
+		t.Fatalf("handleAction(move_mouse --eye) success = false: %s", resp.Message)
+	}
+
+	if moved != (image.Point{X: 100, Y: 201}) {
+		t.Fatalf("move_mouse --eye moved to %v, want (100,201)", moved)
+	}
+}
+
+func TestHandleAction_EyeRejectedForClick(t *testing.T) {
+	controller := &IPCControllerActions{
+		appState: state.NewAppState(),
+		logger:   zap.NewNop(),
+	}
+
+	resp := controller.handleAction(context.Background(), ipc.Command{
+		Action: "action",
+		Args:   []string{"left_click", "--eye"},
+	})
+
+	if resp.Success {
+		t.Fatal("handleAction(left_click --eye) expected failure")
+	}
+
+	if resp.Message != "--eye is only supported with move_mouse" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -430,7 +514,7 @@ func TestHandleAction_PreviousRejectedOnScrollAction(t *testing.T) {
 		t.Fatal("handleAction(scroll_down --previous) expected failure")
 	}
 
-	if resp.Message != "scroll actions do not support --x/--y/--dx/--dy/--center/--name/--modifier/--previous flags" {
+	if resp.Message != "scroll actions do not support --x/--y/--dx/--dy/--center/--name/--modifier/--eye/--previous flags" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -624,4 +708,15 @@ func TestParseSleepDuration(t *testing.T) {
 			}
 		})
 	}
+}
+
+func writeEyeCursorFixture(t *testing.T, body string) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "latest-cursor.json")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	return path
 }

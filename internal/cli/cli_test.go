@@ -219,8 +219,8 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 		{"action_move_monitor", getActionCmd("move_monitor"), true},
 		{"status", getCmd("status"), true},
 		{"doctor", getCmd("doctor"), true}, // doctor returns silentError when daemon is down
+		{"eye_cursor", getSubCmd("eye", "cursor"), true},
 		{"eye_move", getSubCmd("eye", "move"), true},
-		{"eye_click", getSubCmd("eye", "click"), true},
 		{"toggle-screen-share", getCmd("toggle-screen-share"), true},
 		{"toggle-cursor-follow-selection", getCmd("toggle-cursor-follow-selection"), true},
 		{"recursive_grid", getCmd("recursive_grid"), true},

@@ -19,6 +19,7 @@ type IPCController struct {
 	HintService   *services.HintService
 	GridService   *services.GridService
 	ActionService *services.ActionService
+	EyeService    *services.EyeService
 	ScrollService *services.ScrollService
 	ConfigService *config.Service
 
@@ -49,6 +50,7 @@ func NewIPCController(
 	hintService *services.HintService,
 	gridService *services.GridService,
 	actionService *services.ActionService,
+	eyeService *services.EyeService,
 	scrollService *services.ScrollService,
 	configService *config.Service,
 	appState *state.AppState,
@@ -64,6 +66,7 @@ func NewIPCController(
 		HintService:   hintService,
 		GridService:   gridService,
 		ActionService: actionService,
+		EyeService:    eyeService,
 		ScrollService: scrollService,
 		ConfigService: configService,
 		AppState:      appState,
@@ -127,6 +130,7 @@ func (c *IPCController) registerHandlers(cfg *config.Config) {
 	modesHandler := NewIPCControllerModes(c.Modes, c.Logger)
 	actionsHandler := NewIPCControllerActions(
 		c.ActionService,
+		c.EyeService,
 		c.ScrollService,
 		c.Modes,
 		c.AppState,

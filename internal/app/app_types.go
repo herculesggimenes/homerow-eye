@@ -73,6 +73,7 @@ type App struct {
 	hintService            *services.HintService
 	gridService            *services.GridService
 	actionService          *services.ActionService
+	eyeService             *services.EyeService
 	scrollService          *services.ScrollService
 	modeIndicatorService   *modeindicator.Service
 	stickyIndicatorService *stickyindicator.Service

@@ -103,6 +103,7 @@ func initializeServicesAndAdapters(app *App) error {
 	app.hintService = hintService
 	app.gridService = gridService
 	app.actionService = actionService
+	app.eyeService = services.NewEyeService(logger)
 	app.scrollService = scrollService
 	app.modeIndicatorService = modeIndicatorService
 	app.stickyIndicatorService = stickyIndicatorService
@@ -360,6 +361,7 @@ func initializeIPCController(app *App) {
 		app.hintService,
 		app.gridService,
 		app.actionService,
+		app.eyeService,
 		app.scrollService,
 		app.configService,
 		app.appState,
@@ -473,6 +475,7 @@ func cleanupServicesAndAdapters(app *App) {
 	app.hintService = nil
 	app.gridService = nil
 	app.actionService = nil
+	app.eyeService = nil
 	app.scrollService = nil
 	app.modeIndicatorService = nil
 	app.stickyIndicatorService = nil

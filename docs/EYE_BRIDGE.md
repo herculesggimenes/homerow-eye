@@ -1,8 +1,8 @@
 # Eye Bridge
 
 The eye bridge lets Neru use the gaze recorder's second cursor as an OS-wide
-action target. This is the first step toward a Homerow-like workflow where gaze
-narrows the target and an explicit keyboard action confirms the click.
+navigation target. Gaze moves the mouse; clicking remains outside the eye
+bridge and should stay explicit through normal mouse or keyboard input.
 
 ## Source
 
@@ -32,7 +32,7 @@ pnpm dev
 pnpm companion
 ```
 
-Start Neru from this fork:
+Start Neru from this fork. The daemon reads the gaze recorder cursor directly:
 
 ```bash
 cd ~/src/neru-eye
@@ -52,22 +52,15 @@ Move the real cursor to the latest gaze target:
 bin/neru eye move
 ```
 
-Click at the latest gaze target:
+The same daemon-side target can be used through the normal action command:
 
 ```bash
-bin/neru eye click --confirm
-```
-
-Right-click and modifier clicks are also supported:
-
-```bash
-bin/neru eye click --confirm --action right_click
-bin/neru eye click --confirm --modifier cmd
+bin/neru action move_mouse --eye
 ```
 
 ## Safety Defaults
 
-- `eye click` requires `--confirm`.
+- The eye bridge does not click.
 - Cursor samples older than `5s` are rejected.
-- Use `--max-age 0` only for debugging stale data.
-- `eye cursor` is read-only and does not require the Neru daemon.
+- `eye cursor`, `eye move`, and `action move_mouse --eye` all resolve inside
+  the Neru daemon.

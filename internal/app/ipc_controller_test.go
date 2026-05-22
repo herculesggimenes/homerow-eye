@@ -23,6 +23,7 @@ func newTestController() *app.IPCController {
 		nil, // hintService
 		nil, // gridService
 		nil, // actionService
+		nil, // eyeService
 		nil, // scrollService
 		configService,
 		appState,

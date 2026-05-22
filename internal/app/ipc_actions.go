@@ -23,6 +23,7 @@ import (
 // IPCControllerActions handles action-related IPC commands.
 type IPCControllerActions struct {
 	actionService *services.ActionService
+	eyeService    *services.EyeService
 	scrollService *services.ScrollService
 	modesHandler  *modes.Handler
 	appState      *state.AppState
@@ -44,6 +45,7 @@ const modeExitTimeout = 5 * time.Minute
 // NewIPCControllerActions creates a new action command handler.
 func NewIPCControllerActions(
 	actionService *services.ActionService,
+	eyeService *services.EyeService,
 	scrollService *services.ScrollService,
 	modesHandler *modes.Handler,
 	appState *state.AppState,
@@ -51,6 +53,7 @@ func NewIPCControllerActions(
 ) *IPCControllerActions {
 	return &IPCControllerActions{
 		actionService: actionService,
+		eyeService:    eyeService,
 		scrollService: scrollService,
 		modesHandler:  modesHandler,
 		appState:      appState,
@@ -63,6 +66,7 @@ func (h *IPCControllerActions) RegisterHandlers(
 	handlers map[string]func(context.Context, ipc.Command) ipc.Response,
 ) {
 	handlers["action"] = h.handleAction
+	handlers["eye"] = h.handleEye
 }
 
 // parsedActionArgs holds the parsed arguments from an action IPC command.
@@ -75,6 +79,7 @@ type parsedActionArgs struct {
 	hasWindow      bool
 	useSelection   bool
 	useBare        bool
+	useEye         bool
 	monitorName    string
 	hasMonitorName bool
 	usePrevious    bool
@@ -92,6 +97,7 @@ func shouldClearSelectionAfterMoveMouse(parsed parsedActionArgs, targetsSelectio
 	return (parsed.hasX && parsed.hasY) ||
 		parsed.hasCenter ||
 		parsed.hasWindow ||
+		parsed.useEye ||
 		(parsed.hasDX && parsed.hasDY) ||
 		parsed.useBare
 }
@@ -207,6 +213,8 @@ func parseActionArgs(rawArgs []string) (parsedActionArgs, bool) {
 			parsed.useSelection = true
 		case arg == "--bare":
 			parsed.useBare = true
+		case arg == "--eye":
+			parsed.useEye = true
 		case arg == "--previous":
 			parsed.usePrevious = true
 		case arg == "--backward":
@@ -425,6 +433,24 @@ func (h *IPCControllerActions) handleAction(ctx context.Context, cmd ipc.Command
 		return ipc.Response{
 			Success: false,
 			Message: "--selection and --bare cannot be used together",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.useEye && !isMoveMouse {
+		return ipc.Response{
+			Success: false,
+			Message: "--eye is only supported with move_mouse",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if parsed.useEye &&
+		(parsed.hasCenter || parsed.hasWindow || parsed.hasX || parsed.hasY ||
+			parsed.useSelection || parsed.useBare) {
+		return ipc.Response{
+			Success: false,
+			Message: "--eye cannot be combined with --x, --y, --center, --window, --selection, or --bare",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}
@@ -716,6 +742,56 @@ func (h *IPCControllerActions) handleSleepAction(args []string) ipc.Response {
 	}
 }
 
+func (h *IPCControllerActions) handleEye(ctx context.Context, cmd ipc.Command) ipc.Response {
+	if len(cmd.Args) == 0 || cmd.Args[0] != "cursor" {
+		return ipc.Response{
+			Success: false,
+			Message: "eye subcommand required (cursor)",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if len(cmd.Args) > 1 {
+		return ipc.Response{
+			Success: false,
+			Message: "eye cursor does not support arguments",
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	if h.eyeService == nil {
+		return ipc.Response{
+			Success: false,
+			Message: "eye service not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	target, err := h.eyeService.Target(ctx)
+	if err != nil {
+		h.logger.Error("Failed to resolve eye cursor", zap.Error(err))
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to resolve eye cursor: " + err.Error(),
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "eye cursor resolved",
+		Code:    ipc.CodeOK,
+		Data: map[string]any{
+			"x":           target.Point.X,
+			"y":           target.Point.Y,
+			"age_ms":      target.Age.Milliseconds(),
+			"session_id":  target.Payload.SessionID,
+			"cursor_file": h.eyeService.CursorFile(),
+		},
+	}
+}
+
 func parseSleepDuration(durationStr string) (time.Duration, error) {
 	if durationStr == "" {
 		return 0, derrors.New(
@@ -866,6 +942,10 @@ func (h *IPCControllerActions) resolveMoveMousePoint(
 	ctx context.Context,
 	parsed parsedActionArgs,
 ) (image.Point, *ipc.Response) {
+	if parsed.useEye {
+		return h.resolveEyePoint(ctx)
+	}
+
 	if parsed.useSelection {
 		return h.resolveSelectionPoint()
 	}
@@ -880,7 +960,7 @@ func (h *IPCControllerActions) resolveMoveMousePoint(
 
 	return image.Point{}, &ipc.Response{
 		Success: false,
-		Message: "move_mouse requires --x and --y flags, --center, --window, active selection, or --bare",
+		Message: "move_mouse requires --x and --y flags, --center, --window, --eye, active selection, or --bare",
 		Code:    ipc.CodeInvalidInput,
 	}
 }
@@ -932,7 +1012,7 @@ func (h *IPCControllerActions) handleBackspaceAction(parsed parsedActionArgs) ip
 func hasUnsupportedFlags(parsed parsedActionArgs) bool {
 	return parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
 		parsed.hasCenter || parsed.hasMonitorName || parsed.modifierStr != "" ||
-		parsed.useSelection || parsed.useBare || parsed.usePrevious
+		parsed.useSelection || parsed.useBare || parsed.useEye || parsed.usePrevious
 }
 
 func (h *IPCControllerActions) resolveMouseActionPoint(
@@ -967,6 +1047,29 @@ func (h *IPCControllerActions) resolveCurrentCursorPoint(
 	}
 
 	return cursorPos, nil
+}
+
+func (h *IPCControllerActions) resolveEyePoint(ctx context.Context) (image.Point, *ipc.Response) {
+	if h.eyeService == nil {
+		return image.Point{}, &ipc.Response{
+			Success: false,
+			Message: "eye service not available",
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	target, err := h.eyeService.Target(ctx)
+	if err != nil {
+		h.logger.Error("Failed to resolve eye target", zap.Error(err))
+
+		return image.Point{}, &ipc.Response{
+			Success: false,
+			Message: "failed to resolve eye target: " + err.Error(),
+			Code:    ipc.CodeInvalidInput,
+		}
+	}
+
+	return target.Point, nil
 }
 
 func (h *IPCControllerActions) resolveSelectionPoint() (image.Point, *ipc.Response) {
@@ -1218,7 +1321,7 @@ func (h *IPCControllerActions) handleCycleHintAction(
 ) ipc.Response {
 	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
 		parsed.hasCenter || parsed.hasWindow || parsed.useSelection ||
-		parsed.useBare || parsed.hasMonitorName || parsed.usePrevious ||
+		parsed.useBare || parsed.useEye || parsed.hasMonitorName || parsed.usePrevious ||
 		parsed.modifierStr != "" {
 		return ipc.Response{
 			Success: false,
@@ -1311,10 +1414,10 @@ func (h *IPCControllerActions) handleScrollAction(
 	// Reject flags that are not applicable to scroll actions.
 	if parsed.hasX || parsed.hasY || parsed.hasDX || parsed.hasDY ||
 		parsed.hasCenter || parsed.hasMonitorName || parsed.modifierStr != "" ||
-		parsed.usePrevious {
+		parsed.useEye || parsed.usePrevious {
 		return ipc.Response{
 			Success: false,
-			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--name/--modifier/--previous flags",
+			Message: "scroll actions do not support --x/--y/--dx/--dy/--center/--name/--modifier/--eye/--previous flags",
 			Code:    ipc.CodeInvalidInput,
 		}
 	}

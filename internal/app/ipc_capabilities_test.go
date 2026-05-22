@@ -37,6 +37,7 @@ func TestIPCController_StatusIncludesCapabilities(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		configService,
 		appState,
 		cfg,
@@ -116,6 +117,7 @@ func TestIPCController_HealthMarksStubCapabilitiesUnhealthy(t *testing.T) {
 	}
 
 	controller := app.NewIPCController(
+		nil,
 		nil,
 		nil,
 		nil,

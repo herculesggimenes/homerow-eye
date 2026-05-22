@@ -257,6 +257,7 @@ func BuildMoveMouseCommand() *cobra.Command {
 		targetX, targetY int
 		center           bool
 		window           bool
+		eye              bool
 		selection        bool
 		bare             bool
 	)
@@ -268,6 +269,7 @@ func BuildMoveMouseCommand() *cobra.Command {
 Coordinates are relative to the current display.
 When --center is used, the cursor moves to the center of the active screen.
 When --window is used, the cursor moves to the center of the focused window.
+When --eye is used, the daemon moves the cursor to the latest gaze recorder target.
 If --x and --y are also provided with --center or --window, they act as offsets from center.
 Without coordinates, move_mouse targets the active mode selection by default when one exists.
 Use --bare to force current-cursor targeting.`,
@@ -276,28 +278,35 @@ Use --bare to force current-cursor targeting.`,
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if selection &&
-				(center || window || cmd.Flags().Changed("x") || cmd.Flags().Changed("y")) {
+				(center || window || eye || cmd.Flags().Changed("x") || cmd.Flags().Changed("y")) {
 				return derrors.New(
 					derrors.CodeInvalidInput,
-					"--selection cannot be combined with --x, --y, --center, or --window",
+					"--selection cannot be combined with --x, --y, --center, --window, or --eye",
 				)
 			}
 
-			if selection && bare {
+			if selection && bare || eye && bare {
 				return derrors.New(
 					derrors.CodeInvalidInput,
-					"--selection and --bare cannot be used together",
+					"--selection/--eye and --bare cannot be used together",
 				)
 			}
 
-			if center && window {
+			if center && window || center && eye || window && eye {
 				return derrors.New(
 					derrors.CodeInvalidInput,
-					"--center and --window cannot be used together",
+					"use only one of --center, --window, or --eye",
 				)
 			}
 
-			if !center && !window && !selection &&
+			if eye && (cmd.Flags().Changed("x") || cmd.Flags().Changed("y")) {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"--eye cannot be combined with --x or --y",
+				)
+			}
+
+			if !center && !window && !eye && !selection &&
 				((cmd.Flags().Changed("x") && !cmd.Flags().Changed("y")) ||
 					(!cmd.Flags().Changed("x") && cmd.Flags().Changed("y"))) {
 				return derrors.New(
@@ -314,6 +323,10 @@ Use --bare to force current-cursor targeting.`,
 
 			if window {
 				args = append(args, "--window")
+			}
+
+			if eye {
+				args = append(args, "--eye")
 			}
 
 			if cmd.Flags().Changed("x") {
@@ -343,6 +356,8 @@ Use --bare to force current-cursor targeting.`,
 	cmd.Flags().BoolVar(&center, "center", false, "Move to the center of the active screen")
 	cmd.Flags().
 		BoolVar(&window, "window", false, "Move to the center of the focused window")
+	cmd.Flags().
+		BoolVar(&eye, "eye", false, "Move to the latest gaze recorder target")
 	cmd.Flags().
 		BoolVar(&selection, "selection", false, "Explicitly move to the active mode selection")
 	cmd.Flags().
