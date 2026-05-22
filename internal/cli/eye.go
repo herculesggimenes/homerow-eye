@@ -8,14 +8,14 @@ import (
 	"github.com/y3owk1n/neru/internal/cli/cliutil"
 )
 
-// EyeCmd groups commands that use the daemon-owned gaze recorder target.
+// EyeCmd groups commands that use the daemon-owned eye target.
 var EyeCmd = &cobra.Command{
 	Use:   "eye",
-	Short: "Use the gaze recorder cursor as a navigation target",
-	Long: `Use the cursor stream from the gaze recorder as a Neru navigation target.
+	Short: "Use the latest eye target as a navigation target",
+	Long: `Use the latest eye source target as a Neru navigation target.
 
-The Neru daemon reads the gaze recorder directly. Configure the source before
-launching Neru with GAZE_RECORDER_DATA_DIR or GAZE_RECORDER_CURSOR_FILE.`,
+The Neru daemon resolves eye targets directly. Configure the current file source
+before launching Neru with NERU_EYE_DATA_DIR or NERU_EYE_CURSOR_FILE.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		return cmd.Help()

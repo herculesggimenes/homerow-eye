@@ -65,7 +65,7 @@ It's a free, open-source alternative to [Homerow](https://www.homerow.app/), [Mo
 - **Per-app exclusions** — opt specific apps out by bundle ID
 - **CLI & scripting** — full IPC-based CLI for shell scripts and hotkey managers
 - **TOML config** — every keybinding, color, and behavior in one file you can version-control
-- **Experimental eye bridge** — use a gaze recorder's second cursor as a mouse navigation target ([docs](docs/EYE_BRIDGE.md))
+- **Experimental eye navigation** — use a native eye target signal as a mouse navigation target ([docs](docs/EYE_BRIDGE.md))
 
 Works in native macOS apps, Electron apps (VS Code, Slack, Obsidian), all major browsers, creative tools (Figma, Illustrator), and system UI (Dock, Menubar, Mission Control). Grid and Recursive Grid need no accessibility support — they work universally.
 

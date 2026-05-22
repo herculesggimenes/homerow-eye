@@ -269,7 +269,7 @@ func BuildMoveMouseCommand() *cobra.Command {
 Coordinates are relative to the current display.
 When --center is used, the cursor moves to the center of the active screen.
 When --window is used, the cursor moves to the center of the focused window.
-When --eye is used, the daemon moves the cursor to the latest gaze recorder target.
+When --eye is used, the daemon moves the cursor to the latest eye target.
 If --x and --y are also provided with --center or --window, they act as offsets from center.
 Without coordinates, move_mouse targets the active mode selection by default when one exists.
 Use --bare to force current-cursor targeting.`,
@@ -357,7 +357,7 @@ Use --bare to force current-cursor targeting.`,
 	cmd.Flags().
 		BoolVar(&window, "window", false, "Move to the center of the focused window")
 	cmd.Flags().
-		BoolVar(&eye, "eye", false, "Move to the latest gaze recorder target")
+		BoolVar(&eye, "eye", false, "Move to the latest eye target")
 	cmd.Flags().
 		BoolVar(&selection, "selection", false, "Explicitly move to the active mode selection")
 	cmd.Flags().

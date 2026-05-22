@@ -15,15 +15,17 @@ import (
 )
 
 const (
-	// EyeCursorFileEnv overrides the exact gaze cursor JSON file to read.
-	EyeCursorFileEnv = "GAZE_RECORDER_CURSOR_FILE"
-	// EyeDataDirEnv overrides the gaze recorder data directory.
-	EyeDataDirEnv = "GAZE_RECORDER_DATA_DIR"
+	// EyeCursorFileEnv overrides the exact eye target JSON file to read.
+	EyeCursorFileEnv = "NERU_EYE_CURSOR_FILE"
+	// EyeDataDirEnv overrides the eye target data directory.
+	EyeDataDirEnv = "NERU_EYE_DATA_DIR"
 	// DefaultEyeMaxAge is the default staleness limit for gaze samples.
 	DefaultEyeMaxAge = 5 * time.Second
 )
 
-// EyeCursorPayload is the JSON shape emitted by the gaze recorder collector.
+// EyeCursorPayload is the minimal shape Neru needs from an eye source.
+// The source can be native camera processing, a hardware eye tracker, or a
+// temporary file emitted by an external prototype.
 type EyeCursorPayload struct {
 	SessionID string  `json:"sessionId"`
 	TS        float64 `json:"ts"`
@@ -40,7 +42,9 @@ type EyeTarget struct {
 	Age     time.Duration
 }
 
-// EyeService reads the latest gaze target from the recorder's shared cursor file.
+// EyeService reads the latest gaze target from an eye source.
+// File input is the current narrow provider boundary; native camera or hardware
+// providers should feed this service through the same EyeCursorPayload shape.
 type EyeService struct {
 	cursorFile string
 	maxAge     time.Duration
@@ -51,7 +55,7 @@ type EyeService struct {
 // EyeServiceOption configures EyeService.
 type EyeServiceOption func(*EyeService)
 
-// WithEyeCursorFile overrides the cursor payload file.
+// WithEyeCursorFile overrides the eye target payload file.
 func WithEyeCursorFile(path string) EyeServiceOption {
 	return func(s *EyeService) {
 		s.cursorFile = path
@@ -94,7 +98,7 @@ func NewEyeService(logger *zap.Logger, opts ...EyeServiceOption) *EyeService {
 	return service
 }
 
-// CursorFile returns the configured gaze cursor payload file.
+// CursorFile returns the configured eye target payload file.
 func (s *EyeService) CursorFile() string {
 	return s.cursorFile
 }
@@ -180,7 +184,7 @@ func (s *EyeService) targetFromPayload(payload EyeCursorPayload) (EyeTarget, err
 	}, nil
 }
 
-// DefaultEyeCursorFile returns the gaze recorder cursor file Neru should read.
+// DefaultEyeCursorFile returns the eye target file Neru should read.
 func DefaultEyeCursorFile() string {
 	if cursorFile := os.Getenv(EyeCursorFileEnv); cursorFile != "" {
 		return cursorFile
@@ -192,10 +196,10 @@ func DefaultEyeCursorFile() string {
 
 	home, err := os.UserHomeDir()
 	if err == nil && home != "" {
-		return filepath.Join(home, "src", "gaze-mouse-recorder", "data", "latest-cursor.json")
+		return filepath.Join(home, ".local", "share", "neru", "eye", "latest-cursor.json")
 	}
 
-	return filepath.Join("data", "latest-cursor.json")
+	return filepath.Join("eye", "latest-cursor.json")
 }
 
 func unixSecondsToTime(seconds float64) time.Time {
